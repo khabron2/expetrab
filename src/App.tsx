@@ -4,6 +4,9 @@ import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { Expedientes } from './pages/Expedientes';
 import { ExpedienteDetail } from './pages/ExpedienteDetail';
+import { Audiencias } from './pages/Audiencias';
+import { Configuracion } from './pages/Configuracion';
+import { Reportes } from './pages/Reportes';
 import { Login } from './pages/Login';
 import { PublicForm } from './pages/PublicForm';
 
@@ -23,9 +26,9 @@ export default function App() {
           <Route index element={<Dashboard />} />
           <Route path="expedientes" element={<Expedientes />} />
           <Route path="expedientes/:id" element={<ExpedienteDetail />} />
-          <Route path="audiencias" element={<div className="p-8">Módulo de Audiencias (Próximamente)</div>} />
-          <Route path="reportes" element={<div className="p-8">Módulo de Reportes (Próximamente)</div>} />
-          <Route path="config" element={<div className="p-8">Módulo de Configuración (Próximamente)</div>} />
+          <Route path="audiencias" element={<Audiencias />} />
+          <Route path="reportes" element={<Reportes />} />
+          <Route path="config" element={<Configuracion />} />
         </Route>
       </Routes>
     </BrowserRouter>

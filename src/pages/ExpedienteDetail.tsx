@@ -10,7 +10,8 @@ import {
   History,
   CheckCircle2,
   AlertCircle,
-  Save
+  Save,
+  Paperclip
 } from 'lucide-react';
 import { Expediente, Movimiento, Audiencia } from '../types';
 import { cn } from '../lib/utils';
@@ -24,6 +25,10 @@ export function ExpedienteDetail() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [newEstado, setNewEstado] = useState('');
+  const [newTramite, setNewTramite] = useState('');
+  const [isManualTramite, setIsManualTramite] = useState(false);
+  const [showAudienciaModal, setShowAudienciaModal] = useState(false);
+  const [audienciaData, setAudienciaData] = useState({ fecha: '', hora: '08:00', tipo: 'Conciliación' });
 
   useEffect(() => {
     fetch(`/api/expedientes/${id}`)
@@ -31,22 +36,61 @@ export function ExpedienteDetail() {
       .then(data => {
         setData(data);
         setNewEstado(data.estado);
+        setNewTramite(data.tramite || '');
         setLoading(false);
       });
   }, [id]);
+
+  const TRAMITES_PREDEFINIDOS = [
+    'Sale cédula al consumidor',
+    'Sale cédula Al denunciado',
+    'Para Imputar',
+    'Pasa a Archivo',
+    'Plazo de 5 días',
+    'Plazo de 10 días',
+    'Con acuerdo',
+    'Las partes informan acuerdo',
+    'SALE CED. AL CONS.',
+    'A CAJA',
+    'NUEVA AUDIENCIA',
+    'ARCHIVADO PASE A DESPACHO',
+    'PARA HACER'
+  ];
 
   const handleUpdate = async () => {
     setSaving(true);
     await fetch(`/api/expedientes/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ estado: newEstado })
+      body: JSON.stringify({ 
+        estado: newEstado,
+        tramite: newEstado === 'En proceso' ? newTramite : null
+      })
     });
     // Refresh
     const res = await fetch(`/api/expedientes/${id}`);
     const updated = await res.json();
     setData(updated);
     setSaving(false);
+  };
+
+  const handleScheduleAudiencia = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const fecha_hora = `${audienciaData.fecha}T${audienciaData.hora}:00`;
+    await fetch('/api/audiencias', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        expediente_id: data.id,
+        fecha_hora,
+        tipo: audienciaData.tipo
+      })
+    });
+    setShowAudienciaModal(false);
+    // Refresh
+    const res = await fetch(`/api/expedientes/${id}`);
+    const updated = await res.json();
+    setData(updated);
   };
 
   if (loading || !data) return <div className="p-8 animate-pulse">Cargando...</div>;
@@ -60,23 +104,78 @@ export function ExpedienteDetail() {
           </Link>
           <div>
             <h2 className="text-2xl font-bold text-gray-900">{data.numero_expediente}</h2>
-            <p className="text-gray-500">Detalle y seguimiento del expediente</p>
+            <p className="text-gray-500">
+              Estado: <span className="font-bold text-[#1E6FDB]">
+                {data.estado === 'En proceso' && data.tramite ? data.tramite : data.estado}
+              </span>
+              {data.fecha_cambio_estado && (
+                <span className="ml-2 text-xs">
+                  (Desde el {format(new Date(data.fecha_cambio_estado), "d 'de' MMMM", { locale: es })})
+                </span>
+              )}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <select 
-            className="bg-white border border-gray-200 rounded-xl text-sm py-2 px-4 focus:ring-2 focus:ring-[#1E6FDB]/20 transition-all"
-            value={newEstado}
-            onChange={(e) => setNewEstado(e.target.value as any)}
-          >
-            <option value="Ingresado">Ingresado</option>
-            <option value="En proceso">En proceso</option>
-            <option value="Resuelto">Resuelto</option>
-            <option value="Archivado">Archivado</option>
-          </select>
+          <div className="flex items-center gap-2">
+            {!isManualTramite ? (
+              <select 
+                className="bg-white border border-gray-200 rounded-xl text-sm py-2 px-4 focus:ring-2 focus:ring-[#1E6FDB]/20 transition-all min-w-[200px]"
+                value={newEstado === 'En proceso' && newTramite ? `EN_PROCESO:${newTramite}` : newEstado}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === 'OTRO') {
+                    setNewEstado('En proceso');
+                    setIsManualTramite(true);
+                    setNewTramite('');
+                  } else if (val.startsWith('EN_PROCESO:')) {
+                    setNewEstado('En proceso');
+                    setIsManualTramite(false);
+                    setNewTramite(val.split(':')[1]);
+                  } else {
+                    setNewEstado(val as any);
+                    setIsManualTramite(false);
+                    setNewTramite('');
+                  }
+                }}
+              >
+                <option value="Ingresado">Ingresado</option>
+                <optgroup label="En proceso (Trámites)">
+                  {TRAMITES_PREDEFINIDOS.map(t => (
+                    <option key={t} value={`EN_PROCESO:${t}`}>{t}</option>
+                  ))}
+                  <option value="OTRO">Otro trámite (Manual)...</option>
+                </optgroup>
+                <option value="Paso a Jurídico">Paso a Jurídico</option>
+                <option value="Paso a Despacho">Paso a Despacho</option>
+                <option value="Resuelto">Resuelto</option>
+                <option value="Archivado">Archivado</option>
+              </select>
+            ) : (
+              <div className="flex items-center gap-2">
+                <input 
+                  type="text"
+                  placeholder="Escribir trámite..."
+                  className="bg-white border border-gray-200 rounded-xl text-sm py-2 px-4 focus:ring-2 focus:ring-[#1E6FDB]/20 transition-all"
+                  value={newTramite}
+                  onChange={(e) => setNewTramite(e.target.value)}
+                  autoFocus
+                />
+                <button 
+                  onClick={() => {
+                    setIsManualTramite(false);
+                    setNewTramite('');
+                  }}
+                  className="text-xs text-[#1E6FDB] font-bold hover:underline"
+                >
+                  Volver a lista
+                </button>
+              </div>
+            )}
+          </div>
           <button 
             onClick={handleUpdate}
-            disabled={saving || newEstado === data.estado}
+            disabled={saving || (newEstado === data.estado && newTramite === (data.tramite || ''))}
             className="bg-[#1E6FDB] text-white px-4 py-2 rounded-xl font-medium shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all flex items-center gap-2 disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
@@ -100,6 +199,10 @@ export function ExpedienteDetail() {
                     <p className="font-bold text-gray-900">{data.denunciante_nombre}</p>
                     <p className="text-sm text-gray-500">DNI: {data.denunciante_dni}</p>
                     <p className="text-sm text-gray-500">{data.denunciante_email || 'Sin email'}</p>
+                    <div className="flex items-center gap-1.5 mt-1 text-xs font-medium text-[#1E6FDB] bg-blue-50 w-fit px-2 py-1 rounded-lg">
+                      <Calendar className="w-3 h-3" />
+                      <span>Ingreso: {format(new Date(data.fecha_ingreso), 'dd/MM/yyyy HH:mm')}</span>
+                    </div>
                     <div className="mt-2 pt-2 border-t border-gray-100">
                       <p className="text-xs font-bold text-gray-400 uppercase">Domicilio</p>
                       <p className="text-sm text-gray-700">
@@ -182,6 +285,59 @@ export function ExpedienteDetail() {
               </div>
             )}
 
+            {(data.prueba_documental_1 || data.prueba_documental_2) && (
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                  <Paperclip className="w-4 h-4 text-purple-500" />
+                  Prueba Documental
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {data.prueba_documental_1 && (
+                    <div className="p-4 bg-purple-50/30 rounded-xl border border-purple-100 flex items-center justify-between group">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-purple-100 rounded-lg text-purple-600">
+                          <FileText className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-gray-900">Documento 1</p>
+                          <p className="text-xs text-gray-500">Prueba adjunta</p>
+                        </div>
+                      </div>
+                      <a 
+                        href={data.prueba_documental_1} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="p-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-purple-600 hover:bg-purple-600 hover:text-white transition-all shadow-sm"
+                      >
+                        Ver Archivo
+                      </a>
+                    </div>
+                  )}
+                  {data.prueba_documental_2 && (
+                    <div className="p-4 bg-purple-50/30 rounded-xl border border-purple-100 flex items-center justify-between group">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-purple-100 rounded-lg text-purple-600">
+                          <FileText className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-gray-900">Documento 2</p>
+                          <p className="text-xs text-gray-500">Prueba adjunta</p>
+                        </div>
+                      </div>
+                      <a 
+                        href={data.prueba_documental_2} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="p-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-purple-600 hover:bg-purple-600 hover:text-white transition-all shadow-sm"
+                      >
+                        Ver Archivo
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {data.observaciones && (
               <div className="space-y-4">
                 <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Observaciones Internas</h3>
@@ -199,8 +355,78 @@ export function ExpedienteDetail() {
                 <Calendar className="w-5 h-5 text-[#1E6FDB]" />
                 Audiencias Programadas
               </h3>
-              <button className="text-sm font-bold text-[#1E6FDB] hover:underline">Programar Nueva</button>
+              <button 
+                onClick={() => setShowAudienciaModal(true)}
+                className="text-sm font-bold text-[#1E6FDB] hover:underline"
+              >
+                Programar Nueva
+              </button>
             </div>
+
+            {showAudienciaModal && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl"
+                >
+                  <h3 className="text-xl font-bold text-gray-900 mb-6">Programar Audiencia</h3>
+                  <form onSubmit={handleScheduleAudiencia} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-1">Fecha</label>
+                      <input 
+                        type="date" 
+                        required
+                        className="w-full border border-gray-200 rounded-xl p-3"
+                        value={audienciaData.fecha}
+                        onChange={e => setAudienciaData({...audienciaData, fecha: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-1">Hora (8:00 a 12:00)</label>
+                      <select 
+                        className="w-full border border-gray-200 rounded-xl p-3"
+                        value={audienciaData.hora}
+                        onChange={e => setAudienciaData({...audienciaData, hora: e.target.value})}
+                      >
+                        <option value="08:00">08:00 hs</option>
+                        <option value="09:00">09:00 hs</option>
+                        <option value="10:00">10:00 hs</option>
+                        <option value="11:00">11:00 hs</option>
+                        <option value="12:00">12:00 hs</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-1">Tipo</label>
+                      <select 
+                        className="w-full border border-gray-200 rounded-xl p-3"
+                        value={audienciaData.tipo}
+                        onChange={e => setAudienciaData({...audienciaData, tipo: e.target.value})}
+                      >
+                        <option value="Conciliación">Conciliación</option>
+                        <option value="Testimonial">Testimonial</option>
+                        <option value="Informativa">Informativa</option>
+                      </select>
+                    </div>
+                    <div className="flex gap-3 pt-4">
+                      <button 
+                        type="button"
+                        onClick={() => setShowAudienciaModal(false)}
+                        className="flex-1 px-4 py-3 border border-gray-200 rounded-xl font-bold text-gray-500 hover:bg-gray-50"
+                      >
+                        Cancelar
+                      </button>
+                      <button 
+                        type="submit"
+                        className="flex-1 px-4 py-3 bg-[#1E6FDB] text-white rounded-xl font-bold shadow-lg shadow-blue-500/20"
+                      >
+                        Programar
+                      </button>
+                    </div>
+                  </form>
+                </motion.div>
+              </div>
+            )}
             
             {data.audiencias.length === 0 ? (
               <div className="text-center py-8 bg-gray-50 rounded-xl border border-dashed border-gray-200">

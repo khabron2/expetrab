@@ -42,9 +42,25 @@ export function Dashboard() {
 
   const cards = [
     { label: 'Total Expedientes', value: stats.total, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50', trend: '+12%' },
-    { label: 'Reclamos Activos', value: stats.activos, icon: AlertCircle, color: 'text-amber-600', bg: 'bg-amber-50', trend: '+5%' },
-    { label: 'Resueltos', value: stats.resueltos, icon: FileCheck, color: 'text-emerald-600', bg: 'bg-emerald-50', trend: '+18%' },
     { label: 'Tiempo Promedio', value: `${stats.avgResolutionTime} días`, icon: Clock, color: 'text-purple-600', bg: 'bg-purple-50', trend: '-2d' },
+    { 
+      label: 'Último Ingresado', 
+      value: stats.ultimoIngresado?.numero_expediente || 'N/A', 
+      subValue: stats.ultimoIngresado?.denunciante_nombre,
+      icon: FileCheck, 
+      color: 'text-emerald-600', 
+      bg: 'bg-emerald-50', 
+      trend: 'Nuevo' 
+    },
+    { 
+      label: 'Último Modificado', 
+      value: stats.ultimoModificado?.numero_expediente || 'N/A', 
+      subValue: stats.ultimoModificado?.estado,
+      icon: AlertCircle, 
+      color: 'text-amber-600', 
+      bg: 'bg-amber-50', 
+      trend: 'Activo' 
+    },
   ];
 
   return (
@@ -74,16 +90,22 @@ export function Dashboard() {
                 <card.icon className={cn("w-6 h-6", card.color)} />
               </div>
               <span className={cn(
-                "text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1",
+                "text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1 uppercase tracking-wider",
+                card.trend === 'Nuevo' ? "text-emerald-600 bg-emerald-50" : 
+                card.trend === 'Activo' ? "text-amber-600 bg-amber-50" :
                 card.trend.startsWith('+') ? "text-emerald-600 bg-emerald-50" : "text-blue-600 bg-blue-50"
               )}>
-                {card.trend.startsWith('+') ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                {card.trend.startsWith('+') ? <ArrowUpRight className="w-3 h-3" /> : 
+                 card.trend.startsWith('-') ? <ArrowDownRight className="w-3 h-3" /> : null}
                 {card.trend}
               </span>
             </div>
             <div className="mt-4">
               <p className="text-sm font-medium text-gray-500">{card.label}</p>
-              <h3 className="text-2xl font-bold text-gray-900 mt-1">{card.value}</h3>
+              <h3 className="text-xl font-bold text-gray-900 mt-1 truncate">{card.value}</h3>
+              {card.subValue && (
+                <p className="text-xs text-gray-400 mt-1 truncate">{card.subValue}</p>
+              )}
             </div>
           </motion.div>
         ))}

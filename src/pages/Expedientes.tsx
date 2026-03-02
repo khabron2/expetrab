@@ -13,10 +13,15 @@ import { cn } from '../lib/utils';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
+import { FormularioExpediente } from '../components/FormularioExpediente';
+import { X } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 const statusColors = {
   'Ingresado': 'bg-blue-50 text-blue-600 border-blue-100',
   'En proceso': 'bg-amber-50 text-amber-600 border-amber-100',
+  'Paso a Jurídico': 'bg-purple-50 text-purple-600 border-purple-100',
+  'Paso a Despacho': 'bg-indigo-50 text-indigo-600 border-indigo-100',
   'Resuelto': 'bg-emerald-50 text-emerald-600 border-emerald-100',
   'Archivado': 'bg-gray-50 text-gray-600 border-gray-100',
 };
@@ -26,8 +31,10 @@ export function Expedientes() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterEstado, setFilterEstado] = useState('');
+  const [showModal, setShowModal] = useState(false);
 
-  useEffect(() => {
+  const fetchExpedientes = () => {
+    setLoading(true);
     const params = new URLSearchParams();
     if (search) params.append('search', search);
     if (filterEstado) params.append('estado', filterEstado);
@@ -38,6 +45,10 @@ export function Expedientes() {
         setExpedientes(data);
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    fetchExpedientes();
   }, [search, filterEstado]);
 
   return (
@@ -47,11 +58,57 @@ export function Expedientes() {
           <h2 className="text-2xl font-bold text-gray-900">Expedientes</h2>
           <p className="text-gray-500">Gestión y seguimiento de reclamos institucionales</p>
         </div>
-        <button className="bg-[#1E6FDB] text-white px-4 py-2 rounded-xl font-medium shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all flex items-center gap-2">
+        <button 
+          onClick={() => setShowModal(true)}
+          className="bg-[#1E6FDB] text-white px-4 py-2 rounded-xl font-medium shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all flex items-center gap-2"
+        >
           <Plus className="w-4 h-4" />
           Nuevo Expediente
         </button>
       </div>
+
+      <AnimatePresence>
+        {showModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl"
+            >
+              <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                <div className="flex items-center gap-3">
+                  <div className="bg-[#1E6FDB] p-2 rounded-xl">
+                    <Plus className="text-white w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">Cargar Nuevo Expediente</h3>
+                    <p className="text-xs text-gray-500">Complete el formulario para registrar un nuevo reclamo</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowModal(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-all"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-8">
+                <FormularioExpediente 
+                  isAdmin={true} 
+                  onSuccess={() => {
+                    setTimeout(() => {
+                      setShowModal(false);
+                      fetchExpedientes();
+                    }, 1500);
+                  }} 
+                />
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-4 border-b border-gray-100 flex flex-wrap items-center gap-4">
@@ -74,6 +131,8 @@ export function Expedientes() {
             <option value="">Todos los estados</option>
             <option value="Ingresado">Ingresado</option>
             <option value="En proceso">En proceso</option>
+            <option value="Paso a Jurídico">Paso a Jurídico</option>
+            <option value="Paso a Despacho">Paso a Despacho</option>
             <option value="Resuelto">Resuelto</option>
             <option value="Archivado">Archivado</option>
           </select>
@@ -95,8 +154,8 @@ export function Expedientes() {
                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Expediente</th>
                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Denunciante</th>
                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Empresa</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Fecha</th>
                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Fecha</th>
                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
               </tr>
             </thead>
@@ -127,17 +186,17 @@ export function Expedientes() {
                     <p className="text-sm text-gray-600">{exp.empresa_denunciada}</p>
                   </td>
                   <td className="px-6 py-4">
+                    <span className={cn(
+                      "px-3 py-1 rounded-full text-xs font-bold border w-fit",
+                      statusColors[exp.estado]
+                    )}>
+                      {exp.estado === 'En proceso' && exp.tramite ? exp.tramite : exp.estado}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
                     <p className="text-sm text-gray-600">
                       {format(new Date(exp.fecha_ingreso), 'dd MMM yyyy', { locale: es })}
                     </p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={cn(
-                      "px-3 py-1 rounded-full text-xs font-bold border",
-                      statusColors[exp.estado]
-                    )}>
-                      {exp.estado}
-                    </span>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">

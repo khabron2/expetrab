@@ -6,14 +6,34 @@ import { motion } from 'motion/react';
 export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simple mock login
-    if (email && password) {
-      localStorage.setItem('auth', 'true');
-      navigate('/admin');
+    setError('');
+    setLoading(true);
+
+    try {
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        localStorage.setItem('auth', 'true');
+        localStorage.setItem('user', JSON.stringify(data.user));
+        navigate('/admin');
+      } else {
+        setError('Usuario/Email o contraseña incorrectos');
+      }
+    } catch (err) {
+      setError('Error de conexión con el servidor');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -38,14 +58,19 @@ export function Login() {
         </div>
 
         <form onSubmit={handleLogin} className="space-y-6">
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-xl text-center font-medium">
+              {error}
+            </div>
+          )}
           <div className="space-y-2">
-            <label className="text-sm font-bold text-gray-700 ml-1">Correo Institucional</label>
+            <label className="text-sm font-bold text-gray-700 ml-1">Usuario o Correo</label>
             <div className="relative">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input 
-                type="email" 
+                type="text" 
                 required
-                placeholder="usuario@institucion.gob.ar"
+                placeholder="Nombre de usuario o email"
                 className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-[#1E6FDB]/20 focus:border-[#1E6FDB] transition-all outline-none"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
