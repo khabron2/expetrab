@@ -18,6 +18,7 @@ import { cn } from '../lib/utils';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { motion } from 'motion/react';
+import { apiFetch } from '../lib/api';
 
 export function ExpedienteDetail() {
   const { id } = useParams();
@@ -31,7 +32,7 @@ export function ExpedienteDetail() {
   const [audienciaData, setAudienciaData] = useState({ fecha: '', hora: '08:00', tipo: 'Conciliación' });
 
   useEffect(() => {
-    fetch(`/api/expedientes/${id}`)
+    apiFetch(`/api/expedientes/${id}`)
       .then(res => res.json())
       .then(data => {
         setData(data);
@@ -59,7 +60,7 @@ export function ExpedienteDetail() {
 
   const handleUpdate = async () => {
     setSaving(true);
-    await fetch(`/api/expedientes/${id}`, {
+    await apiFetch(`/api/expedientes/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -68,7 +69,7 @@ export function ExpedienteDetail() {
       })
     });
     // Refresh
-    const res = await fetch(`/api/expedientes/${id}`);
+    const res = await apiFetch(`/api/expedientes/${id}`);
     const updated = await res.json();
     setData(updated);
     setSaving(false);
@@ -77,7 +78,7 @@ export function ExpedienteDetail() {
   const handleScheduleAudiencia = async (e: React.FormEvent) => {
     e.preventDefault();
     const fecha_hora = `${audienciaData.fecha}T${audienciaData.hora}:00`;
-    await fetch('/api/audiencias', {
+    await apiFetch('/api/audiencias', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -88,7 +89,7 @@ export function ExpedienteDetail() {
     });
     setShowAudienciaModal(false);
     // Refresh
-    const res = await fetch(`/api/expedientes/${id}`);
+    const res = await apiFetch(`/api/expedientes/${id}`);
     const updated = await res.json();
     setData(updated);
   };

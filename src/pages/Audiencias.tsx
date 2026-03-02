@@ -12,6 +12,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
+import { apiFetch } from '../lib/api';
 
 interface AudienciaConDetalle {
   id: number;
@@ -31,7 +32,7 @@ export function Audiencias() {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/audiencias?fecha=${filterDate}`)
+    apiFetch(`/api/audiencias?fecha=${filterDate}`)
       .then(res => res.json())
       .then(data => {
         setAudiencias(data);

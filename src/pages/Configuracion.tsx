@@ -13,6 +13,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { apiFetch, getApiUrl } from '../lib/api';
 
 interface Usuario {
   id: number;
@@ -36,7 +37,7 @@ export function Configuracion() {
   }, []);
 
   const fetchConfig = async () => {
-    const res = await fetch('/api/config');
+    const res = await apiFetch('/api/config');
     const data = await res.json();
     if (data.next_expediente_number) {
       setNextExpedienteNum(data.next_expediente_number);
@@ -45,7 +46,7 @@ export function Configuracion() {
 
   const handleSaveConfig = async () => {
     setSavingConfig(true);
-    await fetch('/api/config', {
+    await apiFetch('/api/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key: 'next_expediente_number', value: nextExpedienteNum })
@@ -55,12 +56,12 @@ export function Configuracion() {
   };
 
   const handleDownloadDB = () => {
-    window.location.href = '/api/db/download';
+    window.location.href = `${getApiUrl()}/api/db/download`;
   };
 
   const handleClearDB = async () => {
     if (confirm('¡ATENCIÓN! Esta acción eliminará TODOS los expedientes, movimientos y audiencias. Esta acción no se puede deshacer. ¿Desea continuar?')) {
-      const res = await fetch('/api/db/clear', { method: 'POST' });
+      const res = await apiFetch('/api/db/clear', { method: 'POST' });
       if (res.ok) {
         alert('Base de datos limpiada correctamente');
         window.location.reload();
@@ -72,7 +73,7 @@ export function Configuracion() {
 
   const fetchUsuarios = async () => {
     setLoading(true);
-    const res = await fetch('/api/usuarios');
+    const res = await apiFetch('/api/usuarios');
     const data = await res.json();
     setUsuarios(data);
     setLoading(false);
@@ -81,7 +82,7 @@ export function Configuracion() {
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const res = await fetch('/api/usuarios', {
+    const res = await apiFetch('/api/usuarios', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(formData)
@@ -99,7 +100,7 @@ export function Configuracion() {
 
   const handleDeleteUser = async (id: number) => {
     if (confirm('¿Está seguro de eliminar este usuario?')) {
-      await fetch(`/api/usuarios/${id}`, { method: 'DELETE' });
+      await apiFetch(`/api/usuarios/${id}`, { method: 'DELETE' });
       fetchUsuarios();
     }
   };

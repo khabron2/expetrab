@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
+import { apiFetch } from '../lib/api';
 
 interface FormularioExpedienteProps {
   onSuccess?: () => void;
@@ -58,7 +59,7 @@ export function FormularioExpediente({ onSuccess, isAdmin = false }: FormularioE
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch('/api/expedientes', {
+      const res = await apiFetch('/api/expedientes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)

@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from "express";
+import cors from "cors";
 import { createServer as createViteServer } from "vite";
 import Database from "better-sqlite3";
 import path from "path";
@@ -82,7 +83,7 @@ db.exec(`
   INSERT OR IGNORE INTO CONFIGURACION (key, value) VALUES ('next_expediente_number', '1');
 `);
 
-// Seed default user if none exists
+// Seed default users if none exist
 const userCount = db.prepare("SELECT COUNT(*) as count FROM USUARIOS").get() as { count: number };
 if (userCount.count === 0) {
   db.prepare("INSERT INTO USUARIOS (nombre, email, password, rol) VALUES (?, ?, ?, ?)").run(
@@ -91,19 +92,58 @@ if (userCount.count === 0) {
     "admin123",
     "admin"
   );
+  db.prepare("INSERT INTO USUARIOS (nombre, email, password, rol) VALUES (?, ?, ?, ?)").run(
+    "Soporte Técnico",
+    "soporte@crm.gob.ar",
+    "soporte123",
+    "admin"
+  );
+}
+
+// Ensure khabron@gmail.com exists in SQLite
+const khabronExists = db.prepare("SELECT COUNT(*) as count FROM USUARIOS WHERE email = ?").get("khabron@gmail.com") as { count: number };
+if (khabronExists.count === 0) {
+  db.prepare("INSERT INTO USUARIOS (nombre, email, password, rol) VALUES (?, ?, ?, ?)").run(
+    "Khabron",
+    "khabron@gmail.com",
+    "khabron123",
+    "admin"
+  );
 }
 
 // Supabase Seed
 if (supabase) {
   (async () => {
+    // Check if khabron@gmail.com exists in Supabase
+    const { data: existingUser } = await supabase.from('USUARIOS').select('id').eq('email', 'khabron@gmail.com').single();
+    
+    if (!existingUser) {
+      await supabase.from('USUARIOS').insert([
+        {
+          nombre: "Khabron",
+          email: "khabron@gmail.com",
+          password: "khabron123",
+          rol: "admin"
+        }
+      ]);
+    }
+
     const { count } = await supabase.from('USUARIOS').select('*', { count: 'exact', head: true });
     if (count === 0) {
-      await supabase.from('USUARIOS').insert([{
-        nombre: "Administrador",
-        email: "admin@crm.gob.ar",
-        password: "admin123",
-        rol: "admin"
-      }]);
+      await supabase.from('USUARIOS').insert([
+        {
+          nombre: "Administrador",
+          email: "admin@crm.gob.ar",
+          password: "admin123",
+          rol: "admin"
+        },
+        {
+          nombre: "Soporte Técnico",
+          email: "soporte@crm.gob.ar",
+          password: "soporte123",
+          rol: "admin"
+        }
+      ]);
     }
   })();
 }
@@ -169,6 +209,7 @@ if (count.count === 0) {
 
 async function startServer() {
   const app = express();
+  app.use(cors());
   app.use(express.json());
 
   // API Routes

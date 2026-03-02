@@ -21,6 +21,7 @@ import {
   Download,
   Filter
 } from 'lucide-react';
+import { apiFetch } from '../lib/api';
 
 const COLORS = ['#1E6FDB', '#F59E0B', '#8B5CF6', '#6366F1', '#10B981', '#6B7280'];
 
@@ -38,7 +39,7 @@ export function Reportes() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/stats')
+    apiFetch('/api/stats')
       .then(res => res.json())
       .then(data => {
         setStats(data);

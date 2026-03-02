@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { DashboardStats } from '../types';
 import { motion } from 'motion/react';
+import { apiFetch } from '../lib/api';
 
 const COLORS = ['#1E6FDB', '#F59E0B', '#10B981', '#6B7280'];
 
@@ -22,7 +23,7 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/stats')
+    apiFetch('/api/stats')
       .then(res => res.json())
       .then(data => {
         setStats(data);

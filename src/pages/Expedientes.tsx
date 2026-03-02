@@ -16,6 +16,7 @@ import { Link } from 'react-router-dom';
 import { FormularioExpediente } from '../components/FormularioExpediente';
 import { X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { apiFetch } from '../lib/api';
 
 const statusColors = {
   'Ingresado': 'bg-blue-50 text-blue-600 border-blue-100',
@@ -39,7 +40,7 @@ export function Expedientes() {
     if (search) params.append('search', search);
     if (filterEstado) params.append('estado', filterEstado);
 
-    fetch(`/api/expedientes?${params.toString()}`)
+    apiFetch(`/api/expedientes?${params.toString()}`)
       .then(res => res.json())
       .then(data => {
         setExpedientes(data);

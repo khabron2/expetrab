@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Lock, Mail, ArrowRight } from 'lucide-react';
 import { motion } from 'motion/react';
+import { apiFetch } from '../lib/api';
 
 export function Login() {
   const [email, setEmail] = useState('');
@@ -16,7 +17,7 @@ export function Login() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/login', {
+      const response = await apiFetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
