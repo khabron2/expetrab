@@ -12,9 +12,9 @@ const __dirname = path.dirname(__filename);
 
 // Supabase Client (Server Side)
 const supabaseUrl = process.env.SUPABASE_URL || "";
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-const supabase = (supabaseUrl && supabaseServiceKey) 
-  ? createClient(supabaseUrl, supabaseServiceKey)
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || "";
+const supabase = (supabaseUrl && supabaseKey) 
+  ? createClient(supabaseUrl, supabaseKey)
   : null;
 
 const db = new Database("crm.db");
@@ -221,18 +221,30 @@ async function startServer() {
         const { count: resueltos } = await supabase.from('EXPEDIENTES').select('*', { count: 'exact', head: true }).eq('estado', 'Resuelto');
         const { count: archivados } = await supabase.from('EXPEDIENTES').select('*', { count: 'exact', head: true }).eq('estado', 'Archivado');
         
-        const { data: monthly } = await supabase.rpc('get_monthly_stats'); // Requires a custom function in Supabase or manual processing
-        const { data: distribution } = await supabase.from('EXPEDIENTES').select('estado'); // Manual grouping if no RPC
+        const { data: distributionData } = await supabase.from('EXPEDIENTES').select('estado');
+        const { data: monthlyData } = await supabase.from('EXPEDIENTES').select('fecha_ingreso');
         
-        // Fallback for stats if RPCs aren't set up yet
-        const distMap = (distribution || []).reduce((acc: any, curr: any) => {
+        // Process distribution
+        const distMap = (distributionData || []).reduce((acc: any, curr: any) => {
           acc[curr.estado] = (acc[curr.estado] || 0) + 1;
           return acc;
         }, {});
         const distArray = Object.entries(distMap).map(([estado, value]) => ({ estado, value }));
 
-        const { data: ultimoIngresado } = await supabase.from('EXPEDIENTES').select('numero_expediente, denunciante_nombre, fecha_ingreso').order('fecha_ingreso', { ascending: false }).limit(1).single();
-        const { data: ultimoModificado } = await supabase.from('EXPEDIENTES').select('numero_expediente, estado, fecha_cambio_estado').order('fecha_cambio_estado', { ascending: false }).limit(1).single();
+        // Process monthly (last 6 months)
+        const monthMap = (monthlyData || []).reduce((acc: any, curr: any) => {
+          const month = curr.fecha_ingreso.substring(0, 7); // YYYY-MM
+          acc[month] = (acc[month] || 0) + 1;
+          return acc;
+        }, {});
+        const monthlyArray = Object.entries(monthMap)
+          .map(([month, count]) => ({ month, count }))
+          .sort((a, b) => b.month.localeCompare(a.month))
+          .slice(0, 6)
+          .reverse();
+
+        const { data: ultimoIngresado } = await supabase.from('EXPEDIENTES').select('numero_expediente, denunciante_nombre, fecha_ingreso').order('fecha_ingreso', { ascending: false }).limit(1).maybeSingle();
+        const { data: ultimoModificado } = await supabase.from('EXPEDIENTES').select('numero_expediente, estado, fecha_cambio_estado').order('fecha_cambio_estado', { ascending: false }).limit(1).maybeSingle();
 
         return res.json({
           total: total || 0,
@@ -242,7 +254,7 @@ async function startServer() {
           avgResolutionTime: 0, // Placeholder
           ultimoIngresado,
           ultimoModificado,
-          monthly: [], // Placeholder
+          monthly: monthlyArray,
           distribution: distArray,
           hourly: [] // Placeholder
         });
@@ -376,7 +388,8 @@ async function startServer() {
       `);
       
       if (fecha) {
-        query = query.eq('fecha_hora::date', fecha);
+        // PostgreSQL date comparison
+        query = query.gte('fecha_hora', `${fecha}T00:00:00`).lt('fecha_hora', `${fecha}T23:59:59`);
       }
 
       const { data, error } = await query.order('fecha_hora', { ascending: true });
